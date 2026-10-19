@@ -121,6 +121,13 @@ button:not(:disabled):active{transform:scale(.97)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) body::before{opacity:.6}}
 @media(prefers-reduced-motion:reduce){body::before,.ap{animation:none}}
 #fx{position:fixed;inset:0;z-index:15;pointer-events:none;overflow:hidden}
+.bpb{width:100%;margin-top:10px;padding:13px;border-radius:14px;background:linear-gradient(135deg,var(--glass),var(--glass2));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--edge);color:var(--ink);font:700 15px Manrope,sans-serif;box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 0 22px -4px var(--mark);cursor:pointer}
+.xpb{height:10px;border-radius:9px;background:var(--glass2);overflow:hidden;margin:8px 0 6px}
+.xpb i{display:block;height:100%;background:linear-gradient(90deg,var(--mark),#ff6a2a);transition:width .6s ease}
+.lv{display:grid;grid-template-columns:28px 1fr 1fr;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+.lv .c{padding:8px;border-radius:10px;background:var(--glass2);border:1px solid var(--edge);min-height:64px}
+.lv .c.got{opacity:.45}
+.lv .c button{margin-top:4px;padding:5px 9px;font-size:12px}
 #fx .flash,#fx .edge,#fx .rays,#fx i{opacity:0}
 #fx .flash{position:absolute;inset:0;background:radial-gradient(circle at var(--x) var(--y),var(--c),transparent 62%);animation:flash 1.3s ease-out forwards}
 #fx .edge{position:absolute;inset:0;box-shadow:inset 0 0 90px 24px var(--c);animation:edge 1.8s ease-out forwards}
@@ -151,6 +158,7 @@ button:not(:disabled):active{transform:scale(.97)}
   <div id="act"></div>
 </section>
 <button class="go" id="go">Выбить номер · 50 ₽</button>
+<button class="bpb" id="bpb">Батл пасс</button>
 <div class="st"><div><b id="rolls">0</b>попыток</div><div><b id="best">0</b>в гараже</div></div>
 <p class="hint">Не забрал номер в гараж — он продаётся автоматически по цене на экране. Служебные VIP-номера вымышленные и не привязаны к реальным людям.</p>
 <h2>Мой гараж</h2>
@@ -158,6 +166,7 @@ button:not(:disabled):active{transform:scale(.97)}
 <button class="rs" id="rs">Сбросить прогресс</button>
 </main>
 <div id="fx"></div>
+<div id="bp" class="adm" hidden><div class="ap"><div id="bpc"></div><button class="wide" id="bpx">Закрыть</button></div></div>
 <div id="adm" class="adm" hidden><div class="ap">
 <div id="aLogin"><h2>Админ-консоль</h2><div class="ar"><input id="aPw" type="password" placeholder="Пароль" autocomplete="off"><button id="aOk">Войти</button></div><p id="aErr" class="hint"></p><button id="aX0">Закрыть</button></div>
 <div id="aMain" hidden><h2>Админ-консоль</h2>
@@ -207,9 +216,11 @@ function settle(){if(S.pd){S.m+=price(S.pd);S.pd=null}}
 const pl=n=>n%10==1&&n%100!=11?'очко':[2,3,4].includes(n%10)&&![12,13,14].includes(n%100)?'очка':'очков';
 const FL={ru:'<i class="fl ru"></i>',ua:'<i class="fl ua"></i>',by:'<i class="fl by"></i>'};
 let cur='ru',busy=false,S=load();
-function D(){return{m:700000,r:0,c:[],pd:null}}
-function load(){try{const s=JSON.parse(localStorage.getItem('nomer-v2'));return s&&typeof s.m==='number'?s:D()}catch(e){return D()}}
-function save(){try{localStorage.setItem('nomer-v2',JSON.stringify(S))}catch(e){}}
+function D(){return{m:700000,r:0,c:[],pd:null,fs:0,bp:{xp:0,pr:false,cf:[],cp:[]}}}
+var tamper=false;
+function hs(s){let h=5381;for(const c of s+'nm#26')h=(h*33^c.charCodeAt(0))>>>0;return h}
+function load(){try{const j=localStorage.getItem('nomer-v2'),h=localStorage.getItem('nomer-h');if(j&&h&&+h!==hs(j)){tamper=true;return D()}const s=JSON.parse(j);return s&&typeof s.m==='number'?s:D()}catch(e){return D()}}
+function save(){try{const j=JSON.stringify(S);localStorage.setItem('nomer-v2',j);localStorage.setItem('nomer-h',hs(j))}catch(e){}}
 function dig(n){let s;do{s='';for(let i=0;i<n;i++)s+=rnd(10)}while(+s===0);return s}
 function ds(d){const n=d.length,a=[...d].map(Number),f=n===3;
  if(a.every(x=>x===a[0]))return[(f?60:120)+(a[0]===7?40:0),a[0]===7?'счастливые семёрки':'одинаковые цифры'];
@@ -278,17 +289,17 @@ function show(p){const t=tier(p.pts),st=$('stage');
  $('tags').innerHTML=p.tags.length?p.tags.map(x=>'<span'+(x==='VIP'?' class="vp"':'')+'>'+x+'</span>').join(''):'<span>просто номер</span>';
  $('act').innerHTML='<button class="sell" data-a="sell">Продать за '+fmt(price(p))+'</button><button data-a="keep">В гараж</button>';celebrate(t);}
 function render(){
- $('tot').textContent=fmt(S.m);$('rolls').textContent=S.r;$('go').disabled=busy||S.m<50;$('go').textContent=S.m<50?'Не хватает денег':'Выбить номер · 50 ₽';
+ $('tot').textContent=fmt(S.m);$('rolls').textContent=S.r;$('go').disabled=busy||(S.m<50&&!S.fs);$('go').textContent=S.fs>0?'Выбить бесплатно · осталось '+S.fs:S.m<50?'Не хватает денег':'Выбить номер · 50 ₽';$('bpb').textContent='Батл пасс · уровень '+lvl()+(pending()?' · наград: '+pending():'');
  $('best').textContent=S.c.length;
  $('coll').innerHTML=S.c.length?S.c.slice(0,30).map((p,i)=>'<div class="row">'+plate(p)+'<div><b style="color:'+TC[tier(p.pts)]+'">'+TN[tier(p.pts)]+'</b>'+fmt(price(p))+'</div><button class="sell" data-i="'+i+'">Продать</button></div>').join('')+(S.c.length>30?'<p class="empty">и ещё '+(S.c.length-30)+'…</p>':''):'<p class="empty">Пока пусто. Нажми «В гараж» под понравившимся номером.</p>';}
 function roll(){
- if(busy||S.m<50)return;settle();S.m-=50;busy=true;save();render();
+ const fr=S.fs>0;if(busy||(!fr&&S.m<50))return;settle();if(fr)S.fs--;else S.m-=50;busy=true;save();render();
  const rm=matchMedia('(prefers-reduced-motion: reduce)').matches,N=rm?0:16;let i=0;
  $('stage').className='stage';$('stage').style.setProperty('--tc',TC[0]);$('tier').textContent='';$('pts').textContent='Выбиваем…';$('tags').innerHTML='';$('act').innerHTML='';
  const step=()=>{
   if(i++<N){$('plate').innerHTML=plate(gen(cur),'');setTimeout(step,25+i*7);return;}
   const p=inferno(cur)||vip(cur)||gen(cur);show(p);
-  S.r++;S.pd=p;
+  S.r++;S.pd=p;S.bp.xp+=20+2*p.pts;
   
   busy=false;save();render();
  };step();
@@ -329,7 +340,37 @@ $('aVb').onclick=()=>giveP({...VIP[+$('aV').value]});
 $('aInf').onclick=()=>giveP({...INF[+$('aIs').value]});
 $('aClr').onclick=()=>{S.c=[];save();render();am('Гараж очищен');};
 if(location.hash.includes('tgWebAppData')){const sc=document.createElement('script');sc.src='https://telegram.org/js/telegram-web-app.js';sc.onload=()=>{try{const w=Telegram.WebApp;w.ready();w.expand();if(w.disableVerticalSwipes)w.disableVerticalSwipes();}catch(e){}};document.head.appendChild(sc);}
+const LV=30,XL=150,BPP=500000;
+const lvl=()=>Math.min(LV,Math.floor(S.bp.xp/XL));
+function rew(L,pr){
+ if(!pr){if(L===30)return{t:'plate',k:'v',x:'VIP-номер'};return L%5?{t:'money',n:L*3000}:{t:'spin',n:3+L/5};}
+ if(L===10)return{t:'plate',k:'a',x:'Легендарный номер'};
+ if(L===20)return{t:'plate',k:'b',x:'Божественный номер'};
+ if(L===30)return{t:'plate',k:'c',x:'Инферно I'};
+ return L%5?{t:'money',n:L*10000}:{t:'spin',n:10};}
+const rtx=r=>r.t==='money'?fmt(r.n):r.t==='spin'?r.n+' беспл. круток':r.x;
+function pending(){let n=0;for(let L=1;L<=lvl();L++){if(!S.bp.cf.includes(L))n++;if(S.bp.pr&&!S.bp.cp.includes(L))n++}return n}
+function cell(L,pr){const b=S.bp,r=rew(L,pr),got=(pr?b.cp:b.cf).includes(L);let a;
+ if(got)a='<small>получено</small>';else if(pr&&!b.pr)a='<small>нужен премиум</small>';else if(L>lvl())a='<small>нужен ур. '+L+'</small>';else a='<button data-p="'+(pr?1:0)+'" data-l="'+L+'">Забрать</button>';
+ return '<div class="c'+(got?' got':'')+'"><small style="color:'+(pr?'var(--mark)':'var(--mute)')+'">'+(pr?'Премиум':'Бесплатно')+'</small><br>'+rtx(r)+'<br>'+a+'</div>';}
+function renderBP(){const b=S.bp,l=lvl();
+ let h='<h2>Батл пасс · уровень '+l+'/'+LV+'</h2><div class="xpb"><i style="width:'+(l>=LV?100:b.xp%XL/XL*100)+'%"></i></div><p class="hint">'+(l>=LV?'Максимальный уровень':'Опыт: '+b.xp%XL+' / '+XL+'. За крутку +20 и ещё +2 за каждое очко номера')+'</p>';
+ if(!b.pr)h+='<button class="wide" data-buy="1">Премиум · '+fmt(BPP)+'</button>';
+ for(let L=1;L<=LV;L++)h+='<div class="lv"><b>'+L+'</b>'+cell(L,0)+cell(L,1)+'</div>';
+ $('bpc').innerHTML=h;}
+$('bpb').onclick=()=>{renderBP();$('bp').hidden=false};
+$('bpx').onclick=()=>{$('bp').hidden=true};
+$('bpc').onclick=e=>{const t=e.target.closest('button');if(!t)return;const b=S.bp;
+ if(t.dataset.buy){if(S.m>=BPP){S.m-=BPP;b.pr=true;}else{t.textContent='Не хватает денег';return;}}
+ else{const L=+t.dataset.l,pr=+t.dataset.p,arr=pr?b.cp:b.cf;if(L>lvl()||arr.includes(L)||(pr&&!b.pr))return;const r=rew(L,pr);
+  if(r.t==='money')S.m+=r.n;else if(r.t==='spin')S.fs+=r.n;
+  else{const p=r.k==='v'?{...VIP[0]}:r.k==='a'?gen('ru',{a:'О',b:'О',e:'О',d:'001',r:'77'}):r.k==='b'?gen('ua',{pf:'АА',d:'7777',s1:'Х',s2:'Х'}):{...INF[0]};
+   S.c.push({c:p.c,txt:p.txt,reg:p.reg,pts:p.pts,pr:p.pr});S.c.sort((x,y)=>y.pts-x.pts);}
+  arr.push(L);}
+ save();render();renderBP();};
+S.bp=S.bp||{xp:0,pr:false,cf:[],cp:[]};S.fs=S.fs||0;
 settle();save();ghost();render();
+if(tamper)$('pts').textContent='Данные были изменены — прогресс сброшен';
 </script>
 </body>
 </html>
